@@ -1,0 +1,464 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artifact-OS 排版机 - 高端美学工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background-color: #050505;
+            color: #e0e0e0;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #000;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #222;
+            border-radius: 3px;
+        }
+
+        .preview-card {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .preview-card.selected {
+            border-color: #D4AF37;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.15);
+            transform: scale(1.02);
+            opacity: 1 ! from 0.4;
+        }
+
+        #render-source {
+            position: fixed;
+            left: -9999px;
+            top: 0;
+            background: #000;
+        }
+        
+        .btn-primary {
+            background-color: #D4AF37;
+            color: #000;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: #fff;
+            transform: translateY(-1px);
+        }
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+        
+        input, textarea, select {
+            background-color: #0d0d0d !important;
+            border: 1px solid #1a1a1a !important;
+            color: #fff !important;
+            outline: none !important;
+        }
+        input:focus, textarea:focus {
+            border-color: #D4AF37 !important;
+        }
+    </style>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="flex flex-col md:flex-row h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-full md:w-[400px] border-r border-[#1a1a1a] bg-[#0a0a0a] p-8 flex flex-col gap-8 overflow-y-auto custom-scrollbar z-50">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-[#D4AF37] flex items-center justify-center rounded-sm shadow-lg">
+                <i data-lucide="sparkles" class="text-black"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-black text-white tracking-tight">Artifact-OS</h1>
+                <p class="text-[10px] text-[#555] uppercase tracking-[0.3em] font-bold">Native Engine v7.0</p>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <label class="text-[11px] font-bold text-[#666] uppercase tracking-widest flex items-center gap-2">
+                <i data-lucide="heading-1" class="w-3 h-3"></i> 标题内容
+            </label>
+            <input id="userTitle" type="text" placeholder="主标题 (可选)" class="w-full rounded px-4 py-3 text-sm">
+        </div>
+
+        <div class="space-y-4">
+            <label class="text-[11px] font-bold text-[#666] uppercase tracking-widest flex items-center gap-2">
+                <i data-lucide="file-text" class="w-3 h-3"></i> 正文文案
+            </label>
+            <textarea id="mainText" placeholder="在此粘贴您的文案..." class="w-full h-48 rounded p-4 text-sm resize-none leading-relaxed"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+                <label class="text-[10px] text-[#444] uppercase font-black tracking-widest">基础字号</label>
+                <input id="fontSize" type="number" value="30" class="w-full rounded px-3 py-2 text-xs">
+            </div>
+            <div class="space-y-2">
+                <label class="text-[10px] text-[#444] uppercase font-black tracking-widest">行高倍数</label>
+                <input id="lineHeight" type="number" step="0.1" value="1.1" class="w-full rounded px-3 py-2 text-xs">
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <label class="text-[10px] text-[#444] uppercase font-black tracking-widest">导出模式</label>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="modeLong" onclick="setMode('LONG')" class="mode-btn text-[10px] py-2 rounded border border-[#D4AF37] bg-[#D4AF37] text-black font-bold">长图模式</button>
+                <button id="modePages" onclick="setMode('PAGES')" class="mode-btn text-[10px] py-2 rounded border border-[#1a1a1a] text-[#555]">分页模式</button>
+            </div>
+        </div>
+
+        <button id="generateBtn" class="btn-primary w-full py-5 rounded-lg font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 mt-4">
+            <i data-lucide="image" class="w-4 h-4"></i>
+            <span id="btnText">生成视觉排版</span>
+        </button>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto bg-[#000] relative flex flex-col items-center custom-scrollbar">
+        <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center opacity-10 pointer-events-none">
+            <i data-lucide="layout" class="w-24 h-24 mb-6"></i>
+            <p class="tracking-[1em] uppercase text-xs">Awaiting Narrative</p>
+        </div>
+
+        <!-- Toolbar -->
+        <div id="toolbar" class="hidden sticky top-6 z-40 bg-black/80 backdrop-blur-xl px-6 py-3 border border-white/5 rounded-full flex items-center gap-6 shadow-2xl mb-8">
+            <button onclick="toggleSelectAll()" class="flex items-center gap-2 text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">
+                <i data-lucide="check-square" id="selectAllIcon" class="w-4 h-4"></i> 全选
+            </button>
+            <div class="w-px h-4 bg-white/10"></div>
+            <button onclick="downloadSelected()" class="bg-white text-black px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest flex items-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> 批量下载
+            </button>
+            <button onclick="clearPreviews()" class="p-2 text-[#444] hover:text-white transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div id="previewContainer" class="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-5xl p-12 pb-40">
+            <!-- 预览图片将在此生成 -->
+        </div>
+    </main>
+
+    <script>
+        // --- 核心配置 ---
+        const TARGET_WIDTH = 1080;
+        const PAGE_HEIGHT = 1440;
+        let exportMode = 'LONG';
+        let previewUrls = [];
+        let selectedIndices = new Set();
+
+        // --- 初始化 Lucide 图标 ---
+        lucide.createIcons();
+
+        // --- 模式切换 ---
+        function setMode(mode) {
+            exportMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('bg-[#D4AF37]', 'text-black', 'font-bold', 'border-[#D4AF37]');
+                btn.classList.add('border-[#1a1a1a]', 'text-[#555]');
+            });
+            const activeBtn = mode === 'LONG' ? document.getElementById('modeLong') : document.getElementById('modePages');
+            activeBtn.classList.add('bg-[#D4AF37]', 'text-black', 'font-bold', 'border-[#D4AF37]');
+            activeBtn.classList.remove('border-[#1a1a1a]', 'text-[#555]');
+        }
+
+        // --- 准备行数据 ---
+        function getWrappedLines(ctx, text, maxWidth) {
+            const paragraphs = text.split('\n');
+            const lines = [];
+            paragraphs.forEach((p, idx) => {
+                if (p.trim() === '') {
+                    lines.push("[SPACER]");
+                    return;
+                }
+                const chars = p.split('');
+                let currentLine = '';
+                for (let i = 0; i < chars.length; i++) {
+                    const testLine = currentLine + chars[i];
+                    if (ctx.measureText(testLine).width > maxWidth && i > 0) {
+                        lines.push(currentLine);
+                        currentLine = chars[i];
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                if (currentLine) lines.push(currentLine);
+                if (idx < paragraphs.length - 1) lines.push("[SPACER]");
+            });
+            return lines;
+        }
+
+        // --- 单页绘制引擎 ---
+        function drawCanvasPage(lines, pageIndex, isFirstPage, config) {
+            const canvas = document.createElement('canvas');
+            canvas.width = TARGET_WIDTH;
+            canvas.height = PAGE_HEIGHT;
+            const ctx = canvas.getContext('2d');
+
+            // 1. 背景
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, TARGET_WIDTH, PAGE_HEIGHT);
+
+            // 2. 基础设置
+            ctx.textBaseline = 'top';
+            let currentY = isFirstPage ? config.padding : 80;
+
+            // 3. 首页标题装饰
+            if (isFirstPage) {
+                // 品牌线
+                ctx.fillStyle = '#D4AF37';
+                ctx.fillRect(TARGET_WIDTH / 2 - 32, currentY, 64, 2);
+                currentY += 40;
+
+                // 品牌名
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = `bold 48px Inter, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText("ARTIFACT-OS", TARGET_WIDTH / 2, currentY);
+                currentY += 80;
+
+                // 副标题
+                ctx.fillStyle = '#555555';
+                ctx.font = `300 14px Inter, sans-serif`;
+                ctx.letterSpacing = "10px";
+                ctx.fillText("CURATED NARRATIVE", TARGET_WIDTH / 2, currentY);
+                currentY += 80;
+
+                // 用户大标题
+                if (config.userTitle) {
+                    ctx.fillStyle = '#D4AF37';
+                    ctx.font = `900 ${config.fontSize * 1.8}px Inter, sans-serif`;
+                    ctx.letterSpacing = "0px";
+                    ctx.fillText(config.userTitle, TARGET_WIDTH / 2, currentY);
+                    currentY += 140;
+                }
+            }
+
+            // 4. 正文绘制
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#E8D08D';
+            ctx.font = `${config.fontSize}px Inter, sans-serif`;
+            const lineHeight = config.fontSize * config.lineHeight;
+
+            lines.forEach(line => {
+                if (line === "[SPACER]") {
+                    currentY += config.paragraphSpacing;
+                } else {
+                    ctx.fillText(line, config.padding, currentY);
+                    currentY += lineHeight;
+                }
+            });
+
+            // 5. 页脚
+            ctx.fillStyle = '#333333';
+            ctx.font = `12px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText(`ARTIFACT ARCHIVE • PAGE ${pageIndex + 1}`, TARGET_WIDTH / 2, PAGE_HEIGHT - 60);
+
+            return canvas.toDataURL('image/png');
+        }
+
+        // --- 生成功能 ---
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const text = document.getElementById('mainText').value;
+            const userTitle = document.getElementById('userTitle').value;
+            const fontSize = parseInt(document.getElementById('fontSize').value);
+            const lineHeightVal = parseFloat(document.getElementById('lineHeight').value);
+
+            if (!text && !userTitle) return;
+
+            const btn = document.getElementById('generateBtn');
+            const btnText = document.getElementById('btnText');
+            btn.disabled = true;
+            btnText.innerText = "正在计算排版...";
+
+            try {
+                const config = {
+                    fontSize,
+                    lineHeight: lineHeightVal,
+                    padding: 90,
+                    paragraphSpacing: 45,
+                    userTitle
+                };
+
+                const tempCanvas = document.createElement('canvas');
+                const ctx = tempCanvas.getContext('2d');
+                ctx.font = `${fontSize}px Inter, sans-serif`;
+                const maxWidth = TARGET_WIDTH - (config.padding * 2);
+                const allLines = getWrappedLines(ctx, text, maxWidth);
+
+                if (exportMode === 'PAGES') {
+                    const pages = [];
+                    let currentBatch = [];
+                    let isFirst = true;
+                    let currentY = config.padding + 220 + (userTitle ? 140 : 0);
+                    const maxY = PAGE_HEIGHT - 120;
+
+                    for (const line of allLines) {
+                        const h = (line === "[SPACER]" ? config.paragraphSpacing : fontSize * lineHeightVal);
+                        if (currentY + h > maxY) {
+                            pages.push([...currentBatch]);
+                            currentBatch = [];
+                            currentY = 80;
+                            isFirst = false;
+                        }
+                        currentBatch.push(line);
+                        currentY += h;
+                    }
+                    if (currentBatch.length > 0) pages.push(currentBatch);
+
+                    previewUrls = pages.map((pLines, i) => drawCanvasPage(pLines, i, i === 0, config));
+                } else {
+                    // 长图模式：计算总高度
+                    const headerHeight = 220 + (userTitle ? 140 : 0) + config.padding;
+                    const contentHeight = allLines.reduce((acc, line) => acc + (line === "[SPACER]" ? config.paragraphSpacing : fontSize * lineHeightVal), 0);
+                    const totalHeight = headerHeight + contentHeight + config.padding;
+
+                    const longCanvas = document.createElement('canvas');
+                    longCanvas.width = TARGET_WIDTH;
+                    longCanvas.height = totalHeight;
+                    const lCtx = longCanvas.getContext('2d');
+
+                    lCtx.fillStyle = '#000000';
+                    lCtx.fillRect(0, 0, TARGET_WIDTH, totalHeight);
+                    lCtx.textBaseline = 'top';
+
+                    // 绘制长图页眉
+                    let y = config.padding;
+                    lCtx.fillStyle = '#D4AF37';
+                    lCtx.fillRect(TARGET_WIDTH / 2 - 32, y, 64, 2);
+                    y += 40;
+                    lCtx.fillStyle = '#FFFFFF';
+                    lCtx.font = `bold 48px Inter, sans-serif`;
+                    lCtx.textAlign = 'center';
+                    lCtx.fillText("ARTIFACT-OS", TARGET_WIDTH / 2, y);
+                    y += 80;
+                    lCtx.fillStyle = '#555555';
+                    lCtx.font = `300 14px Inter, sans-serif`;
+                    lCtx.fillText("CURATED NARRATIVE", TARGET_WIDTH / 2, y);
+                    y += 80;
+                    if (userTitle) {
+                        lCtx.fillStyle = '#D4AF37';
+                        lCtx.font = `900 ${fontSize * 1.8}px Inter, sans-serif`;
+                        lCtx.fillText(userTitle, TARGET_WIDTH / 2, y);
+                        y += 140;
+                    }
+
+                    // 绘制长图正文
+                    lCtx.textAlign = 'left';
+                    lCtx.fillStyle = '#E8D08D';
+                    lCtx.font = `${fontSize}px Inter, sans-serif`;
+                    allLines.forEach(line => {
+                        if (line === "[SPACER]") {
+                            y += config.paragraphSpacing;
+                        } else {
+                            lCtx.fillText(line, config.padding, y);
+                            y += fontSize * lineHeightVal;
+                        }
+                    });
+
+                    previewUrls = [longCanvas.toDataURL('image/png')];
+                }
+
+                updateUI();
+            } catch (err) {
+                console.error(err);
+                alert("排版引擎异常，请检查文案格式。");
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = "生成视觉排版";
+            }
+        });
+
+        // --- UI 更新 ---
+        function updateUI() {
+            const container = document.getElementById('previewContainer');
+            const toolbar = document.getElementById('toolbar');
+            const empty = document.getElementById('emptyState');
+
+            container.innerHTML = '';
+            selectedIndices = new Set(previewUrls.map((_, i) => i));
+
+            if (previewUrls.length > 0) {
+                toolbar.classList.remove('hidden');
+                empty.classList.add('hidden');
+            }
+
+            previewUrls.forEach((url, i) => {
+                const card = document.createElement('div');
+                card.className = `preview-card rounded-sm overflow-hidden relative cursor-pointer selected`;
+                card.dataset.index = i;
+                card.innerHTML = `
+                    <img src="${url}" class="w-full h-auto">
+                    <div class="absolute top-4 left-4 bg-black/60 px-3 py-1 text-[10px] font-bold border border-white/10 rounded">P${i + 1}</div>
+                    <div class="absolute top-4 right-4 check-indicator">
+                        <i data-lucide="check-circle-2" class="w-5 h-5 text-[#D4AF37]"></i>
+                    </div>
+                `;
+                card.onclick = () => toggleSelect(i, card);
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function toggleSelect(i, card) {
+            if (selectedIndices.has(i)) {
+                selectedIndices.delete(i);
+                card.classList.remove('selected');
+                card.classList.add('opacity-40', 'grayscale');
+            } else {
+                selectedIndices.add(i);
+                card.classList.add('selected');
+                card.classList.remove('opacity-40', 'grayscale');
+            }
+        }
+
+        function toggleSelectAll() {
+            const cards = document.querySelectorAll('.preview-card');
+            if (selectedIndices.size === previewUrls.length) {
+                selectedIndices.clear();
+                cards.forEach(c => {
+                    c.classList.remove('selected');
+                    c.classList.add('opacity-40', 'grayscale');
+                });
+            } else {
+                previewUrls.forEach((_, i) => selectedIndices.add(i));
+                cards.forEach(c => {
+                    c.classList.add('selected');
+                    c.classList.remove('opacity-40', 'grayscale');
+                });
+            }
+        }
+
+        function downloadSelected() {
+            selectedIndices.forEach(idx => {
+                const link = document.createElement('a');
+                link.download = `artifact-${Date.now()}-${idx + 1}.png`;
+                link.href = previewUrls[idx];
+                link.click();
+            });
+        }
+
+        function clearPreviews() {
+            previewUrls = [];
+            selectedIndices.clear();
+            document.getElementById('previewContainer').innerHTML = '';
+            document.getElementById('toolbar').classList.add('hidden');
+            document.getElementById('emptyState').classList.remove('hidden');
+        }
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
